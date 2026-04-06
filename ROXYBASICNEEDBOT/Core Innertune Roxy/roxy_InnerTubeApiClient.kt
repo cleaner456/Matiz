@@ -81,7 +81,7 @@ class RoxyInnerTubeApiClient {
     }
 
     suspend fun validateUrl(url: String, ytClient: RoxyYouTubeClient): Boolean {
-        val response = client.head(url) {
+        val response = client.get(url) {
             header("Range", "bytes=0-0")
             header("User-Agent", ytClient.userAgent)
         }
@@ -89,8 +89,7 @@ class RoxyInnerTubeApiClient {
     }
 
     private fun HttpRequestBuilder.setHeaders(ytClient: RoxyYouTubeClient, visitorData: String) {
-        // Need to parse clientName mapping to ints or strings properly based on InnerTube specs
-        header("X-YouTube-Client-Name", "1") // often 1 for WEB
+        header("X-YouTube-Client-Name", ytClient.clientId.toString())
         header("X-YouTube-Client-Version", ytClient.clientVersion)
         header("X-Goog-Api-Format-Version", "1")
         header("X-Goog-Visitor-Id", visitorData)

@@ -63,7 +63,20 @@ class RoxyStreamResolver(
 }
 
 class RoxyNewPipeDecipherStub {
-    fun decipher(signatureCipher: String): String {
-        return "https://deciphered-url.com"
+    fun decipher(signatureCipher: String): String? {
+        // signatureCipher provides URL parameters (s, sp, url)
+        // Using NewPipe Extractor, we typically:
+        // 1. Fetch Javascript player for the corresponding video client
+        // 2. Feed 's' string map to Extractor's cipher decoding engine
+        // 3. Append '&<sp>=<deciphered_s>' back to the 'url'
+        
+        return try {
+            // Note: Since NewPipeExtractor exposes internal decoding engines directly, 
+            // instance `org.schabi.newpipe.extractor.services.youtube.extractors.YoutubeStreamExtractor`
+            // if you need its full URL interception power.
+            "https://placeholder-decided-url.com" // Placeholder
+        } catch (e: Exception) {
+            null
+        }
     }
 }

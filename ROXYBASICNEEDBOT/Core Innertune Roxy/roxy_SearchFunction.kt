@@ -18,14 +18,18 @@ class RoxySearchFunction(
         val sections = tabs.firstOrNull()?.tabRenderer?.content?.sectionListRenderer?.contents ?: return emptyList()
         
         for (sectionWrapper in sections) {
-            val items = sectionWrapper.itemSectionRenderer?.contents ?: continue
+            val items = sectionWrapper.musicShelfRenderer?.contents ?: continue
             for (itemWrapper in items) {
                 val renderer = itemWrapper.musicResponsiveListItemRenderer ?: continue
                 
-                val videoId = "mock_video_id"
-                val title = "Mock Title extracted from InnerTube response"
-                val artist = "Mock Artist"
-                val thumbnail = "https://i.ytimg.com/vi/mock/hqdefault.jpg"
+                val videoId = renderer.playlistItemData?.videoId ?: continue
+                val title = renderer.flexColumns.getOrNull(0)
+                    ?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.firstOrNull()?.text ?: "Unknown Title"
+                
+                val artist = renderer.flexColumns.getOrNull(1)
+                    ?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.joinToString("") { it.text } ?: "Unknown Artist"
+                
+                val thumbnail = renderer.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails?.lastOrNull()?.url ?: ""
                 
                 results.add(
                     RoxySearchResult(
