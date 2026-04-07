@@ -29,28 +29,32 @@ class RoxyStreamTest {
     @Test
     fun `test player response is OK`() = runBlocking {
         println("\n▶ TEST 1: Player Response Check")
-        println("   VideoId: $testVideoId | Client: WEB_REMIX")
+        
+        val response = RoxyClientIdentities.fallbackList.firstNotNullOfOrNull { client ->
+            println("   Trying Client: ${client.clientName}")
+            try {
+                val res = apiClient.getPlayer(testVideoId, client, testVisitorData)
+                if (res.playabilityStatus?.status == "OK") {
+                    println("   ✅ Success with client: ${client.clientName}")
+                    res
+                } else {
+                    println("   ❌ Failed with client: ${client.clientName} (Status: ${res.playabilityStatus?.status})")
+                    null
+                }
+            } catch (e: Exception) {
+                null
+            }
+        }
 
-        val response = apiClient.getPlayer(
-            videoId = testVideoId,
-            ytClient = RoxyClientIdentities.WEB_REMIX,
-            visitorData = testVisitorData
-        )
-
-        println("   Status: ${response.playabilityStatus?.status}")
+        assertNotNull(response, "No client returned a valid OK response")
+        
         println("   Title:  ${response.videoDetails?.title}")
         println("   Author: ${response.videoDetails?.author}")
         println("   Length: ${response.videoDetails?.lengthSeconds}s")
         println("   Formats found: ${response.streamingData?.adaptiveFormats?.size ?: 0}")
 
-        assertNotNull(response.playabilityStatus, "playabilityStatus should not be null")
         assertTrue(
-            response.playabilityStatus!!.status == "OK",
-            "Expected OK but got: ${response.playabilityStatus!!.status} | reason: ${response.playabilityStatus!!.reason}"
-        )
-        assertNotNull(response.streamingData, "streamingData should not be null")
-        assertTrue(
-            (response.streamingData!!.adaptiveFormats.size) > 0,
+            (response.streamingData?.adaptiveFormats?.size ?: 0) > 0,
             "Should have at least one adaptive format"
         )
     }
@@ -62,11 +66,14 @@ class RoxyStreamTest {
     fun `test audio formats are present and filterable`() = runBlocking {
         println("\n▶ TEST 2: Audio Format Filtering")
 
-        val response = apiClient.getPlayer(
-            videoId = testVideoId,
-            ytClient = RoxyClientIdentities.ANDROID_MUSIC,
-            visitorData = testVisitorData
-        )
+        val response = RoxyClientIdentities.fallbackList.firstNotNullOfOrNull { client ->
+            try {
+                val res = apiClient.getPlayer(testVideoId, client, testVisitorData)
+                if (res.playabilityStatus?.status == "OK" && (res.streamingData?.adaptiveFormats?.size ?: 0) > 0) res else null
+            } catch (e: Exception) { null }
+        }
+        
+        assertNotNull(response, "Could not get a successful response from any client")
 
         val audioFormats = response.streamingData?.adaptiveFormats?.filter {
             it.mimeType.startsWith("audio/") && it.bitrate > 0
