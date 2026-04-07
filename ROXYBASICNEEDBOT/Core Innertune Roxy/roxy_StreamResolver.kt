@@ -127,12 +127,12 @@ class RoxyOkHttpDownloader : Downloader() {
         reqBuilder.method(request.httpMethod(), body)
 
         val response = httpClient.newCall(reqBuilder.build()).execute()
-        val responseBody = response.body()?.string() ?: ""
-        val headers = response.headers().toMultimap()
+        val responseBody = response.body?.string() ?: ""
+        val headers = response.headers.toMultimap()
 
         return Response(
-            response.code(),
-            response.message(),
+            response.code,
+            response.message,
             headers,
             responseBody,
             request.url()
