@@ -35,19 +35,14 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-gradle-
 
-      # Step 4: Make gradlew executable
-      - name: Grant execute permission to gradlew
-        run: chmod +x gradlew
-        continue-on-error: true  # gradlew nahi bhi ho sakta
-
-      # Step 5: Build check
+      # Step 4: Build check
       - name: Build project
-        run: ./gradlew compileKotlin --no-daemon
+        run: gradle compileKotlin --no-daemon
         continue-on-error: false
 
-      # Step 6: Run tests
+      # Step 5: Run tests
       - name: Run Roxy Stream Tests
-        run: ./gradlew test --no-daemon --info
+        run: gradle test --no-daemon --info
         timeout-minutes: 5
 
       # Step 7: Test results upload (pass ya fail dono cases mein)
