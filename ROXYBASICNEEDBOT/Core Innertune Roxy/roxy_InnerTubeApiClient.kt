@@ -28,7 +28,7 @@ class RoxyInnerTubeApiClient {
         val payload = buildJsonObject {
             put("context", buildJsonObject {
                 put("client", buildJsonObject {
-                    put("clientName", ytClient.clientName.name)
+                    put("clientName", ytClient.ytClientName)
                     put("clientVersion", ytClient.clientVersion)
                     put("hl", ytClient.hl)
                     put("gl", ytClient.gl)
@@ -38,6 +38,8 @@ class RoxyInnerTubeApiClient {
             put("videoId", videoId)
             put("playbackContext", buildJsonObject {
                 put("contentPlaybackContext", buildJsonObject {
+                    // TODO: Fetch this dynamically from YouTube JS player URL. Update manually if cipher decoding breaks.
+                    // Current value valid as of early 2025. Check InnerTune source for latest.
                     put("signatureTimestamp", signatureTimestamp)
                 })
             })
@@ -63,7 +65,7 @@ class RoxyInnerTubeApiClient {
         val payload = buildJsonObject {
             put("context", buildJsonObject {
                 put("client", buildJsonObject {
-                    put("clientName", ytClient.clientName.name)
+                    put("clientName", ytClient.ytClientName)
                     put("clientVersion", ytClient.clientVersion)
                     put("hl", ytClient.hl)
                     put("gl", ytClient.gl)
@@ -80,15 +82,8 @@ class RoxyInnerTubeApiClient {
         }.body()
     }
 
-    suspend fun validateUrl(url: String, ytClient: RoxyYouTubeClient): Boolean {
-        val response = client.get(url) {
-            header("Range", "bytes=0-0")
-            header("User-Agent", ytClient.userAgent)
-        }
-        return response.status.isSuccess() || response.status.value == 206 // Partial Content
-    }
-
     private fun HttpRequestBuilder.setHeaders(ytClient: RoxyYouTubeClient, visitorData: String) {
+        header("X-Goog-Api-Key", "AIzaSyC9XL3ZjWddXya6X74dJoCTL-CALX5LwBM")
         header("X-YouTube-Client-Name", ytClient.clientId.toString())
         header("X-YouTube-Client-Version", ytClient.clientVersion)
         header("X-Goog-Api-Format-Version", "1")

@@ -55,15 +55,10 @@ class RoxyStreamResolver(
             }
 
             if (finalUrl != null) {
-                val isValid = apiClient.validateUrl(finalUrl, client)
-                if (isValid) {
-                    val expiresInSeconds = response.streamingData.expiresInSeconds?.toLongOrNull() ?: 21600L
-                    val expiryTimestamp = System.currentTimeMillis() + (expiresInSeconds * 1000)
-                    streamCache[cacheKey] = finalUrl to expiryTimestamp
-                    return finalUrl
-                } else {
-                    blockedClients[client.clientName] = System.currentTimeMillis() + (10 * 60 * 1000)
-                }
+                val expiresInSeconds = response.streamingData?.expiresInSeconds?.toLongOrNull() ?: 21600L
+                val expiryTimestamp = System.currentTimeMillis() + (expiresInSeconds * 1000)
+                streamCache[cacheKey] = finalUrl to expiryTimestamp
+                return finalUrl
             }
         }
         return null
