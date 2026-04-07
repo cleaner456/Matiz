@@ -7,7 +7,7 @@ on:
 
 jobs:
   build:
-    name: Build APK
+    name: Test + Build APK
     runs-on: ubuntu-latest
 
     steps:
@@ -31,7 +31,18 @@ jobs:
             ${{ runner.os }}-gradle-
 
       - name: Make gradlew executable
-        run: chmod +x ./gradlew
+        run: chmod +x gradlew
+
+      - name: Run unit tests
+        run: ./gradlew :app:testDebugUnitTest --no-daemon
+        timeout-minutes: 5
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: app/build/reports/tests/testDebugUnitTest/
 
       - name: Build Debug APK
         run: ./gradlew :app:assembleDebug --no-daemon
