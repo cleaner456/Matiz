@@ -1,5 +1,13 @@
 package roxy.music.app
 
+import org.schabi.newpipe.extractor.NewPipe
+import org.schabi.newpipe.extractor.downloader.Downloader
+import org.schabi.newpipe.extractor.downloader.Request
+import org.schabi.newpipe.extractor.downloader.Response
+import org.schabi.newpipe.extractor.services.youtube.YoutubeJavaScriptPlayerManager
+import java.net.URLDecoder
+import okhttp3.OkHttpClient
+
 class RoxyStreamResolver(
     private val apiClient: RoxyInnerTubeApiClient,
     private val newPipeDecipherEngine: RoxyNewPipeDecipherStub
@@ -43,7 +51,7 @@ class RoxyStreamResolver(
 
             var finalUrl = bestFormat.url
             if (finalUrl == null && bestFormat.signatureCipher != null) {
-                finalUrl = newPipeDecipherEngine.decipher(bestFormat.signatureCipher)
+                finalUrl = newPipeDecipherEngine.decipher(bestFormat.signatureCipher!!, videoId)
             }
 
             if (finalUrl != null) {
@@ -63,20 +71,71 @@ class RoxyStreamResolver(
 }
 
 class RoxyNewPipeDecipherStub {
-    fun decipher(signatureCipher: String): String? {
-        // signatureCipher provides URL parameters (s, sp, url)
-        // Using NewPipe Extractor, we typically:
-        // 1. Fetch Javascript player for the corresponding video client
-        // 2. Feed 's' string map to Extractor's cipher decoding engine
-        // 3. Append '&<sp>=<deciphered_s>' back to the 'url'
-        
+
+    // NewPipe ko ek baar initialize karna hai app start pe
+    init {
+        try {
+            NewPipe.init(RoxyOkHttpDownloader())
+        } catch (e: Exception) {
+            // Already initialized — ignore
+        }
+    }
+
+    fun decipher(signatureCipher: String, videoId: String): String? {
         return try {
-            // Note: Since NewPipeExtractor exposes internal decoding engines directly, 
-            // instance `org.schabi.newpipe.extractor.services.youtube.extractors.YoutubeStreamExtractor`
-            // if you need its full URL interception power.
-            "https://placeholder-decided-url.com" // Placeholder
+            // Step 1: signatureCipher parse karo — format hai: s=SIG&sp=sig&url=BASE_URL
+            val params = signatureCipher.split("&").associate { param ->
+                val idx = param.indexOf('=')
+                if (idx == -1) param to ""
+                else param.substring(0, idx) to
+                    URLDecoder.decode(param.substring(idx + 1), "UTF-8")
+            }
+
+            val encodedSig = params["s"] ?: return null
+            val sigParam   = params["sp"] ?: "sig"
+            val baseUrl    = params["url"] ?: return null
+
+            // Step 2: NewPipe se signature decipher karo
+            // Yeh internally YouTube JS player fetch karke signature decode karta hai
+            val deciphered = YoutubeJavaScriptPlayerManager
+                .deobfuscateSignature(videoId, encodedSig)
+
+            // Step 3: Deciphered signature URL me append karo
+            "$baseUrl&$sigParam=$deciphered"
+
         } catch (e: Exception) {
             null
         }
+    }
+}
+
+// NewPipe ke liye simple OkHttp downloader wrapper
+class RoxyOkHttpDownloader : Downloader() {
+    private val httpClient = OkHttpClient()
+
+    override fun execute(request: Request): Response {
+        val reqBuilder = okhttp3.Request.Builder().url(request.url())
+
+        request.headers().forEach { (key, values) ->
+            values.forEach { value -> reqBuilder.addHeader(key, value) }
+        }
+
+        val body = request.dataToSend()?.let {
+            okhttp3.RequestBody.create(null, it)
+        }
+
+        reqBuilder.method(request.httpMethod(), body)
+
+        val response = httpClient.newCall(reqBuilder.build()).execute()
+        val responseBody = response.body()?.string() ?: ""
+        val headers = response.headers().toMultimap()
+
+        return Response(
+            response.code(),
+            response.message(),
+            headers,
+            responseBody,
+            request.url()
+        )
     }
 }
