@@ -24,10 +24,10 @@ object RoxyClientIdentities {
     )
     val IOS = RoxyYouTubeClient(
         clientName = RoxyClientName.IOS,
-        ytClientName = "iOS",
+        ytClientName = "IOS",
         clientId = 5,
-        clientVersion = "19.03.1",
-        userAgent = "com.google.ios.youtube/19.03.1(iPhone14,3; U; CPU iOS 16_2 like Mac OS X; en_US)"
+        clientVersion = "19.45.4",
+        userAgent = "com.google.ios.youtube/19.45.4(iPhone16,2; U; CPU iOS 17_5_1 like Mac OS X; en_US)"
     )
     val ANDROID_MUSIC = RoxyYouTubeClient(
         clientName = RoxyClientName.ANDROID_MUSIC,
