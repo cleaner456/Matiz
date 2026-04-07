@@ -24,16 +24,11 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      # Step 3: Gradle cache (faster builds)
-      - name: Cache Gradle packages
-        uses: actions/cache@v4
+      # Step 3: Setup Gradle
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
         with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-
+          gradle-version: '8.5'
 
       # Step 4: Build check
       - name: Build project
