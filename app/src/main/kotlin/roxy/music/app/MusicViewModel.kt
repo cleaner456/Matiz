@@ -278,7 +278,6 @@ class MusicViewModel(
                 _isStreamLoading.value = false
             }
         }
-    }
 
     fun togglePlayPause() {
         if (player.isPlaying) {
