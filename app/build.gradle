@@ -2,7 +2,7 @@ plugins {
     id 'com.android.application'
     id 'org.jetbrains.kotlin.plugin.serialization'
     id 'org.jetbrains.kotlin.plugin.compose'
-    id 'kotlin-kapt'
+    id 'com.google.devtools.ksp'
     id 'com.google.dagger.hilt.android'
 }
 
@@ -130,5 +130,5 @@ dependencies {
 
     // Hilt
     implementation libs.hilt
-    kapt libs.hilt.compiler
+    ksp libs.hilt.compiler
 }
