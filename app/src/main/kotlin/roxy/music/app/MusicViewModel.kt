@@ -122,7 +122,7 @@ class MusicViewModel(
         viewModelScope.launch(Dispatchers.IO) {
             _isLoading.value = true
             try {
-                val page = YouTube.search(query, WEB_REMIX)
+                val page = YouTube.search(query, YouTube.SearchFilter.Songs)
                     .getOrThrow()
                 val results = page.items.filterIsInstance<SongItem>().map { song ->
                     RoxySearchResult(
