@@ -47,11 +47,11 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val darkScheme = darkColorScheme(
-                primary = Color(0xFF7C4DFF),
-                onPrimary = Color.White,
+                primary = Color(0xFFFFFFFF),
+                onPrimary = Color.Black,
                 secondary = Color(0xFFB388FF),
-                background = Color(0xFF0D0D1A),
-                surface = Color(0xFF151530),
+                background = Color(0xFF0A0A0A),
+                surface = Color(0xFF111111),
                 onBackground = Color.White,
                 onSurface = Color.White
             )
@@ -64,7 +64,7 @@ class MainActivity : ComponentActivity() {
                 val isPlaying by viewModel.isPlaying.collectAsState()
 
                 Scaffold(
-                    containerColor = Color(0xFF0D0D1A),
+                    containerColor = Color(0xFF0A0A0A),
                     bottomBar = {
                         Column {
                             // Mini player bar
@@ -87,53 +87,54 @@ class MainActivity : ComponentActivity() {
 
                             // Navigation bar
                             NavigationBar(
-                                containerColor = Color(0xFF0A0A18),
+                                containerColor = Color(0xFF111111),
                                 contentColor = Color.White,
-                                tonalElevation = 0.dp
+                                tonalElevation = 0.dp,
+                                modifier = Modifier.height(64.dp)
                             ) {
                                 NavigationBarItem(
                                     icon = { Icon(Icons.Default.Home, contentDescription = "Home") },
-                                    label = { Text("Home", fontSize = 11.sp) },
+                                    label = { Text("Home", fontSize = 11.sp, fontWeight = if (currentRoute == "home") FontWeight.Bold else FontWeight.Normal) },
                                     selected = currentRoute == "home",
                                     onClick = {
                                         navController.navigate("home") { launchSingleTop = true }
                                     },
                                     colors = NavigationBarItemDefaults.colors(
-                                        selectedIconColor = Color(0xFFB388FF),
-                                        selectedTextColor = Color(0xFFB388FF),
-                                        unselectedIconColor = Color(0xFF6B6B8D),
-                                        unselectedTextColor = Color(0xFF6B6B8D),
-                                        indicatorColor = Color(0xFF1A1A3A)
+                                        selectedIconColor = Color.White,
+                                        selectedTextColor = Color.White,
+                                        unselectedIconColor = Color(0xFF888888),
+                                        unselectedTextColor = Color(0xFF888888),
+                                        indicatorColor = Color(0x26FFFFFF) // rgba(255,255,255,0.15)
                                     )
                                 )
                                 NavigationBarItem(
                                     icon = { Icon(Icons.Default.Search, contentDescription = "Search") },
-                                    label = { Text("Search", fontSize = 11.sp) },
+                                    label = { Text("Search", fontSize = 11.sp, fontWeight = if (currentRoute == "search") FontWeight.Bold else FontWeight.Normal) },
                                     selected = currentRoute == "search",
                                     onClick = {
                                         navController.navigate("search") { launchSingleTop = true }
                                     },
                                     colors = NavigationBarItemDefaults.colors(
-                                        selectedIconColor = Color(0xFFB388FF),
-                                        selectedTextColor = Color(0xFFB388FF),
-                                        unselectedIconColor = Color(0xFF6B6B8D),
-                                        unselectedTextColor = Color(0xFF6B6B8D),
-                                        indicatorColor = Color(0xFF1A1A3A)
+                                        selectedIconColor = Color.White,
+                                        selectedTextColor = Color.White,
+                                        unselectedIconColor = Color(0xFF888888),
+                                        unselectedTextColor = Color(0xFF888888),
+                                        indicatorColor = Color(0x26FFFFFF)
                                     )
                                 )
                                 NavigationBarItem(
-                                    icon = { Icon(Icons.Default.PlayCircle, contentDescription = "Player") },
-                                    label = { Text("Player", fontSize = 11.sp) },
-                                    selected = currentRoute == "player",
+                                    icon = { Icon(Icons.Default.LibraryMusic, contentDescription = "Library") },
+                                    label = { Text("Library", fontSize = 11.sp, fontWeight = if (currentRoute == "library") FontWeight.Bold else FontWeight.Normal) },
+                                    selected = currentRoute == "library",
                                     onClick = {
-                                        navController.navigate("player") { launchSingleTop = true }
+                                        navController.navigate("library") { launchSingleTop = true }
                                     },
                                     colors = NavigationBarItemDefaults.colors(
-                                        selectedIconColor = Color(0xFFB388FF),
-                                        selectedTextColor = Color(0xFFB388FF),
-                                        unselectedIconColor = Color(0xFF6B6B8D),
-                                        unselectedTextColor = Color(0xFF6B6B8D),
-                                        indicatorColor = Color(0xFF1A1A3A)
+                                        selectedIconColor = Color.White,
+                                        selectedTextColor = Color.White,
+                                        unselectedIconColor = Color(0xFF888888),
+                                        unselectedTextColor = Color(0xFF888888),
+                                        indicatorColor = Color(0x26FFFFFF)
                                     )
                                 )
                             }
@@ -144,8 +145,12 @@ class MainActivity : ComponentActivity() {
                         NavHost(navController = navController, startDestination = "home") {
                             composable("home") {
                                 HomeScreen(
+                                    viewModel = viewModel,
                                     onNavigateToSearch = {
                                         navController.navigate("search") { launchSingleTop = true }
+                                    },
+                                    onNavigateToPlayer = {
+                                        navController.navigate("player") { launchSingleTop = true }
                                     }
                                 )
                             }
@@ -156,6 +161,9 @@ class MainActivity : ComponentActivity() {
                                         navController.navigate("player") { launchSingleTop = true }
                                     }
                                 )
+                            }
+                            composable("library") {
+                                roxy.music.app.ui.screens.LibraryScreen()
                             }
                             composable("player") { PlayerScreen(viewModel = viewModel) }
                         }
@@ -180,22 +188,18 @@ private fun MiniPlayerBar(
 ) {
     if (song == null) return
 
-    val barGradient = Brush.horizontalGradient(
-        colors = listOf(Color(0xFF1A0A2E), Color(0xFF200E3A))
-    )
-
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onTap),
-        shape = RoundedCornerShape(0.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.Transparent)
+            .clickable(onClick = onTap)
+            .padding(horizontal = 8.dp, vertical = 4.dp),
+        shape = RoundedCornerShape(8.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF1A1A1A))
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(barGradient)
-                .padding(horizontal = 12.dp, vertical = 10.dp),
+                .padding(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Thumbnail
@@ -204,8 +208,8 @@ private fun MiniPlayerBar(
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
-                    .size(44.dp)
-                    .clip(RoundedCornerShape(8.dp))
+                    .size(40.dp)
+                    .clip(RoundedCornerShape(6.dp))
             )
 
             Spacer(modifier = Modifier.width(12.dp))
@@ -215,14 +219,14 @@ private fun MiniPlayerBar(
                 Text(
                     text = song.title,
                     color = Color.White,
-                    fontSize = 14.sp,
+                    fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
                     text = song.artist,
-                    color = Color(0xFF8888AA),
+                    color = Color(0xFF888888),
                     fontSize = 12.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -232,16 +236,13 @@ private fun MiniPlayerBar(
             // Play/Pause button
             IconButton(
                 onClick = onPlayPause,
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .background(Color(0xFF7C4DFF).copy(alpha = 0.3f))
+                modifier = Modifier.size(48.dp)
             ) {
                 Icon(
                     if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                     contentDescription = if (isPlaying) "Pause" else "Play",
                     tint = Color.White,
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier.size(28.dp)
                 )
             }
         }
