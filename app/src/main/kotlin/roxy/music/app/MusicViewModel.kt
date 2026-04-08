@@ -16,17 +16,33 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import roxy.music.app.models.SongItem
+import roxy.music.app.models.YouTubeClient
+import roxy.music.app.models.YouTubeClient.Companion.WEB_REMIX
+import roxy.music.app.models.YouTubeClient.Companion.ANDROID_MUSIC
 
 class MusicViewModel(
     val player: ExoPlayer
 ) : ViewModel() {
 
-    private val apiClient = RoxyInnerTubeApiClient()
-    private val resolver = RoxyStreamResolver(apiClient, RoxyNewPipeDecipherStub())
-    private val searchFunction = RoxySearchFunction(apiClient)
-
-    // Decoded visitorData (no URL encoding — raw base64)
-    private val visitorData = "CgtEVG1fM1ZoY2VZOCIYEAA="
+    init {
+        // Initialize YouTube object with visitorData on startup
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                // Fetch fresh visitorData from YouTube
+                val freshVisitorData = YouTube.visitorData()
+                    .getOrNull()
+                    ?.takeIf { it.isNotBlank() }
+                if (freshVisitorData != null) {
+                    YouTube.visitorData = freshVisitorData
+                } else {
+                    YouTube.visitorData = "CgtEVG1fM1ZoY2VZOCIYEAA="
+                }
+            } catch (e: Exception) {
+                YouTube.visitorData = "CgtEVG1fM1ZoY2VZOCIYEAA="
+            }
+        }
+    }
 
     private val _searchResults = MutableStateFlow<List<RoxySearchResult>>(emptyList())
     val searchResults: StateFlow<List<RoxySearchResult>> = _searchResults.asStateFlow()
@@ -103,10 +119,19 @@ class MusicViewModel(
 
     fun search(query: String) {
         if (query.isBlank()) return
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             _isLoading.value = true
             try {
-                val results = searchFunction.performSearch(query, visitorData)
+                val page = YouTube.search(query, WEB_REMIX)
+                    .getOrThrow()
+                val results = page.items.filterIsInstance<SongItem>().map { song ->
+                    RoxySearchResult(
+                        title = song.title,
+                        artist = song.artists?.joinToString(", ") { it.name } ?: "Unknown",
+                        videoId = song.id,
+                        thumbnailUrl = song.thumbnail ?: ""
+                    )
+                }
                 _searchResults.value = results
             } catch (e: Exception) {
                 _searchResults.value = emptyList()
@@ -130,7 +155,32 @@ class MusicViewModel(
 
             try {
                 val streamUrl = withContext(Dispatchers.IO) {
-                    resolver.resolveStreamUrl(song.videoId, visitorData)
+                    try {
+                        // Step 1: Get player response from YouTube
+                        val playerResponse = YouTube.player(
+                            videoId = song.videoId,
+                            playlistId = null,
+                            client = YouTubeClient.ANDROID_MUSIC
+                        ).getOrThrow()
+                
+                        if (playerResponse.playabilityStatus.status != "OK") {
+                            null
+                        } else {
+                            // Step 2: Find best audio format
+                            val format = playerResponse.streamingData?.adaptiveFormats
+                                ?.filter { it.isAudio && it.bitrate > 0 }
+                                ?.filter { it.url != null || it.signatureCipher != null || it.cipher != null }
+                                ?.sortedByDescending { it.bitrate }
+                                ?.firstOrNull()
+                
+                            // Step 3: Decode URL using NewPipeUtils (handles both direct + ciphered)
+                            format?.let {
+                                NewPipeUtils.getStreamUrl(it, song.videoId).getOrNull()
+                            }
+                        }
+                    } catch (e: Exception) {
+                        null
+                    }
                 }
 
                 if (streamUrl != null) {
