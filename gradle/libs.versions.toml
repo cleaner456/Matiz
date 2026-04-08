@@ -3,17 +3,17 @@ androidGradlePlugin = "8.9.1"
 annotation = "1.9.1"
 json = "20250517"
 kotlin = "1.9.22"
-compose = "1.11.0-beta02"
-lifecycle = "2.10.0"
-material3 = "1.5.0-alpha16"
-media3 = "1.10.0"
-room = "2.8.4"
-hilt = "2.48"
-ktor = "3.4.2"
-ksp = "2.3.6"
+compose = "1.6.7"
+lifecycle = "2.7.0"
+material3 = "1.2.1"
+media3 = "1.3.1"
+room = "2.6.1"
+hilt = "2.51.1"
+ktor = "2.3.12"
+ksp = "1.9.22-1.0.17"
 jsoup = "1.22.1"
 re2j = "1.8"
-coil = "3.4.0"
+coil = "2.6.0"
 guava = "33.5.0-jre"
 coroutinesGuava = "1.10.2"
 materialiconsextended = "1.7.8"
@@ -70,8 +70,7 @@ lifecycle-runtime-compose = { module = "androidx.lifecycle:lifecycle-runtime-com
 
 material3 = { module = "androidx.compose.material3:material3", version.ref = "material3" }
 
-coil = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil" }
-coil-network-okhttp = { module = "io.coil-kt.coil3:coil-network-okhttp", version.ref = "coil" }
+coil = { module = "io.coil-kt:coil-compose", version.ref = "coil" }
 
 shimmer = { module = "com.valentinilk.shimmer:compose-shimmer", version.ref = "shimmer" }
 
