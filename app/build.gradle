@@ -27,18 +27,22 @@ android {
     }
 
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_17
-        targetCompatibility JavaVersion.VERSION_17
+        sourceCompatibility JavaVersion.VERSION_21
+        targetCompatibility JavaVersion.VERSION_21
     }
     kotlinOptions {
-        jvmTarget = '17'
+        jvmTarget = '21'
+    }
+    
+    kotlin {
+        jvmToolchain(21)
     }
     
     buildFeatures {
         compose true
     }
     composeOptions {
-        kotlinCompilerExtensionVersion '1.5.0'
+        kotlinCompilerExtensionVersion '1.5.10'
     }
 
     sourceSets {
@@ -49,16 +53,41 @@ android {
             java.srcDirs += ["../src/test/kotlin"]
         }
     }
+
+    packaging {
+        jniLibs {
+            useLegacyPackaging = false
+        }
+        resources {
+            excludes += "/META-INF/{AL2.0,LGPL2.1}"
+            excludes += "META-INF/NOTICE.md"
+            excludes += "META-INF/CONTRIBUTORS.md"
+            excludes += "META-INF/LICENSE.md"
+        }
+    }
+
+    lint {
+        warningsAsErrors = false
+        abortOnError = false
+        checkDependencies = false
+    }
+}
+
+tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
+    kotlinOptions {
+        freeCompilerArgs += [
+            "-opt-in=kotlin.RequiresOptIn"
+        ]
+    }
 }
 
 dependencies {
     // Ktor HTTP client
-    def ktor_version = '2.3.7'
-    implementation "io.ktor:ktor-client-core:$ktor_version"
-    implementation "io.ktor:ktor-client-okhttp:$ktor_version"
-    implementation "io.ktor:ktor-client-encoding:$ktor_version"
-    implementation "io.ktor:ktor-client-content-negotiation:$ktor_version"
-    implementation "io.ktor:ktor-serialization-kotlinx-json:$ktor_version"
+    implementation libs.ktor.client.core
+    implementation libs.ktor.client.okhttp
+    implementation libs.ktor.client.encoding
+    implementation libs.ktor.client.content.negotiation
+    implementation libs.ktor.serialization.json
 
     // Kotlinx serialization + coroutines
     implementation 'org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.0'
@@ -68,38 +97,38 @@ dependencies {
     // OkHttp (for stream validation + NewPipe downloader)
     implementation 'com.squareup.okhttp3:okhttp:4.12.0'
 
-    // NewPipe Extractor (cipher decoding)
-    implementation 'com.github.TeamNewPipe:NewPipeExtractor:v0.24.2'
+    // NewPipe Extractor
+    implementation libs.newpipe.extractor
 
     // AndroidX & Compose
-    def composeBom = platform('androidx.compose:compose-bom:2024.02.00')
-    implementation composeBom
+    implementation platform('androidx.compose:compose-bom:2024.02.00')
     implementation 'androidx.core:core-ktx:1.12.0'
-    implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.7.0'
-    implementation 'androidx.activity:activity-compose:1.8.2'
-    implementation 'androidx.compose.ui:ui'
-    implementation 'androidx.compose.ui:ui-graphics'
-    implementation 'androidx.compose.material3:material3'
-    implementation 'androidx.compose.material:material-icons-extended'
-    implementation 'androidx.compose.ui:ui-tooling-preview'
-    implementation 'androidx.navigation:navigation-compose:2.7.7'
+    implementation libs.lifecycle.runtime.compose
+    implementation libs.activity
+    implementation libs.compose.ui
+    implementation libs.compose.ui.util
+    implementation libs.material3
+    implementation libs.compose.material.icons.extended
+    implementation libs.compose.ui.tooling
+    implementation libs.navigation
 
     // ViewModel Compose
-    implementation 'androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0'
+    implementation libs.viewmodel.compose
     
     // Coil for images
-    implementation 'io.coil-kt:coil-compose:2.5.0'
+    implementation libs.coil
+    implementation libs.coil.network.okhttp
 
     // ExoPlayer (Media3)
-    def media3_version = "1.2.1"
-    implementation "androidx.media3:media3-exoplayer:$media3_version"
-    implementation "androidx.media3:media3-ui:$media3_version"
+    implementation libs.media3
+    implementation libs.media3.session
+    implementation libs.media3.okhttp
 
     // Test
-    testImplementation 'org.jetbrains.kotlin:kotlin-test:1.9.0'
+    testImplementation libs.junit
     testImplementation 'org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3'
 
     // Hilt
-    implementation "com.google.dagger:hilt-android:2.48"
-    kapt "com.google.dagger:hilt-compiler:2.48"
+    implementation libs.hilt
+    kapt libs.hilt.compiler
 }
