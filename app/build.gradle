@@ -114,6 +114,5 @@ dependencies {
     implementation libs.palette
     implementation libs.multiplatform.markdown
     implementation libs.apache.lang3
-    implementation libs.compose.adaptive
-    implementation libs.androidx.window
 }
+
