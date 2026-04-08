@@ -155,32 +155,12 @@ class MusicViewModel(
 
             try {
                 val streamUrl = withContext(Dispatchers.IO) {
-                    try {
-                        // Step 1: Get player response from YouTube
-                        val playerResponse = YouTube.player(
-                            videoId = song.videoId,
-                            playlistId = null,
-                            client = YouTubeClient.ANDROID_MUSIC
-                        ).getOrThrow()
-                
-                        if (playerResponse.playabilityStatus.status != "OK") {
-                            null
-                        } else {
-                            // Step 2: Find best audio format
-                            val format = playerResponse.streamingData?.adaptiveFormats
-                                ?.filter { it.isAudio && it.bitrate > 0 }
-                                ?.filter { it.url != null || it.signatureCipher != null || it.cipher != null }
-                                ?.sortedByDescending { it.bitrate }
-                                ?.firstOrNull()
-                
-                            // Step 3: Decode URL using NewPipeUtils (handles both direct + ciphered)
-                            format?.let {
-                                NewPipeUtils.getStreamUrl(it, song.videoId).getOrNull()
-                            }
-                        }
-                    } catch (e: Exception) {
-                        null
-                    }
+                    val apiClient = RoxyInnerTubeApiClient()
+                    val resolver = RoxyStreamResolver(apiClient, RoxyNewPipeDecipherStub())
+                    resolver.resolveStreamUrl(
+                        videoId = song.videoId,
+                        visitorData = YouTube.visitorData ?: "CgtEVG1fM1ZoY2VZOCIYEAA="
+                    )
                 }
 
                 if (streamUrl != null) {
