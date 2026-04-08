@@ -2,6 +2,7 @@ plugins {
     id 'com.android.application'
     id 'org.jetbrains.kotlin.android'
     id 'org.jetbrains.kotlin.plugin.serialization'
+    id 'org.jetbrains.kotlin.plugin.compose'
     id 'kotlin-kapt'
     id 'com.google.dagger.hilt.android'
 }
@@ -42,7 +43,7 @@ android {
         compose true
     }
     composeOptions {
-        kotlinCompilerExtensionVersion '1.5.10'
+        // Handled by org.jetbrains.kotlin.plugin.compose
     }
 
     sourceSets {
@@ -117,6 +118,7 @@ dependencies {
     
     // Coil for images
     implementation libs.coil
+    implementation libs.coil.network.okhttp
 
     // ExoPlayer (Media3)
     implementation libs.media3
