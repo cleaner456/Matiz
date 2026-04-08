@@ -1,349 +1,437 @@
 package roxy.music.app.ui.screens
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.pulltorefresh.pullToRefresh
+import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults.Indicator
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
-import roxy.music.app.MusicViewModel
-import roxy.music.app.RoxySearchResult
-import java.util.Calendar
+import androidx.compose.ui.zIndex
+import androidx.compose.material3.MaterialTheme
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.navigation.NavController
+import androidx.navigation.compose.currentBackStackEntryAsState
+import roxy.music.app.utils.parseCookieString
+import roxy.music.app.LocalPlayerAwareWindowInsets
+import roxy.music.app.LocalPlayerConnection
+import roxy.music.app.R
+import roxy.music.app.constants.InnerTubeCookieKey
+import roxy.music.app.constants.DisableBlurKey
+import roxy.music.app.constants.ShowHomeCategoryChipsKey
+import roxy.music.app.ui.component.ChipsRow
+import roxy.music.app.ui.component.LocalBottomSheetPageState
+import roxy.music.app.ui.component.LocalMenuState
+import roxy.music.app.ui.component.NavigationTitle
+import roxy.music.app.ui.utils.SnapLayoutInfoProvider
+import roxy.music.app.utils.rememberPreference
+import roxy.music.app.viewmodels.HomeViewModel
+import kotlinx.coroutines.launch
 
-private fun getGreeting(): String {
-    val h = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
-    return when {
-        h < 12 -> "Good morning"
-        h < 17 -> "Good afternoon"
-        else -> "Good evening"
-    }
-}
 
+@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
-    viewModel: MusicViewModel,
-    onNavigateToSearch: () -> Unit = {},
-    onNavigateToPlayer: () -> Unit = {}
+    navController: NavController,
+    viewModel: HomeViewModel = hiltViewModel(),
 ) {
-    val homeRecs by viewModel.homeRecs.collectAsState()
-    val homePop by viewModel.homePop.collectAsState()
-    val homeTrapCity by viewModel.homeTrapCity.collectAsState()
+    val menuState = LocalMenuState.current
+    val bottomSheetPageState = LocalBottomSheetPageState.current
+    val playerConnection = LocalPlayerConnection.current ?: return
+    val haptic = LocalHapticFeedback.current
 
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color(0xFF0A0A0A))
-            .padding(bottom = 80.dp) // padding for bottom nav
-    ) {
-        // Header
-        item {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 16.dp, end = 16.dp, top = 20.dp, bottom = 12.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top
-            ) {
-                Column {
-                    Text(
-                        text = "Matiz",
-                        color = Color.White,
-                        fontSize = 28.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = FontFamily.Cursive
-                    )
-                    Text(
-                        text = getGreeting(),
-                        color = Color(0xFF888888),
-                        fontSize = 13.sp
-                    )
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    IconButton(onClick = { }) {
-                        Icon(Icons.Default.History, contentDescription = "History", tint = Color(0xFFAAAAAA))
-                    }
-                    IconButton(onClick = { }) {
-                        Icon(Icons.Default.Settings, contentDescription = "Settings", tint = Color(0xFFAAAAAA))
-                    }
+    val isPlaying by playerConnection.isPlaying.collectAsState()
+    val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
+
+    val quickPicks by viewModel.quickPicks.collectAsState()
+    val speedDialSongs by viewModel.speedDialSongs.collectAsState()
+    val forgottenFavorites by viewModel.forgottenFavorites.collectAsState()
+    val keepListening by viewModel.keepListening.collectAsState()
+    val homePage by viewModel.homePage.collectAsState()
+
+    val selectedChip by viewModel.selectedChip.collectAsState()
+
+    val isLoading: Boolean by viewModel.isLoading.collectAsState()
+    val isRefreshing by viewModel.isRefreshing.collectAsState()
+    val pullRefreshState = rememberPullToRefreshState()
+
+    val forgottenFavoritesLazyGridState = rememberLazyGridState()
+
+    val accountName by viewModel.accountName.collectAsState()
+    val accountImageUrl by viewModel.accountImageUrl.collectAsState()
+    val innerTubeCookie by rememberPreference(InnerTubeCookieKey, "")
+    val (disableBlur) = rememberPreference(DisableBlurKey, false)
+    val (showHomeCategoryChips) = rememberPreference(ShowHomeCategoryChipsKey, true)
+    val isLoggedIn = remember(innerTubeCookie) {
+        "SAPISID" in parseCookieString(innerTubeCookie)
+    }
+    val url = if (isLoggedIn) accountImageUrl else null
+
+    val scope = rememberCoroutineScope()
+    val lazylistState = rememberLazyListState()
+    val backStackEntry by navController.currentBackStackEntryAsState()
+    val scrollToTop =
+        backStackEntry?.savedStateHandle?.getStateFlow("scrollToTop", false)?.collectAsState()
+
+    LaunchedEffect(scrollToTop?.value) {
+        if (scrollToTop?.value == true) {
+            lazylistState.animateScrollToItem(0)
+            backStackEntry?.savedStateHandle?.set("scrollToTop", false)
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        snapshotFlow { lazylistState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
+            .collect { lastVisibleIndex ->
+                val len = lazylistState.layoutInfo.totalItemsCount
+                if (lastVisibleIndex != null && lastVisibleIndex >= len - 3) {
+                    viewModel.loadMoreYouTubeItems(homePage?.continuation)
                 }
             }
-        }
+    }
 
-        // Artist recommendation header
-        item {
+    if (selectedChip != null) {
+        BackHandler {
+            // if a chip is selected, go back to the normal homepage first
+            viewModel.toggleChip(selectedChip)
+        }
+    }
+
+    LaunchedEffect(showHomeCategoryChips, selectedChip) {
+        if (!showHomeCategoryChips && selectedChip != null) {
+            viewModel.toggleChip(selectedChip)
+        }
+    }
+
+    LaunchedEffect(forgottenFavorites) {
+        forgottenFavoritesLazyGridState.scrollToItem(0)
+    }
+
+    // Capture M3 Expressive colors from theme outside drawBehind
+    val color1 = MaterialTheme.colorScheme.primary
+    val color2 = MaterialTheme.colorScheme.secondary
+    val color3 = MaterialTheme.colorScheme.tertiary
+    val color4 = MaterialTheme.colorScheme.primaryContainer
+    val color5 = MaterialTheme.colorScheme.secondaryContainer
+    val surfaceColor = MaterialTheme.colorScheme.surface
+    
+    Box(
+        modifier = Modifier.fillMaxSize()
+    ) {
+        // M3E Mesh gradient background layer at the top
+        if (!disableBlur) {
             Box(
                 modifier = Modifier
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(Color(0xFF1A1A1A))
-                    .clickable { }
-                    .padding(horizontal = 14.dp, vertical = 12.dp)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    AsyncImage(
-                        model = "https://images.unsplash.com/photo-1762287929145-b09f2610cd6f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=400",
-                        contentDescription = "Artist",
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier
-                            .size(48.dp)
-                            .clip(CircleShape)
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Column {
-                        Text(
-                            text = "SIMILAR TO",
-                            color = Color(0xFFAAAAAA),
-                            fontSize = 11.sp,
-                            letterSpacing = 1.sp
-                        )
-                        Text(
-                            text = "HIEUTHUHAI",
-                            color = Color.White,
-                            fontSize = 17.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-            }
-        }
+                    .fillMaxSize(0.7f) // Cover top 70% of screen
+                    .align(Alignment.TopCenter)
+                    .zIndex(-1f) // Place behind all content
+                    .drawWithCache {
+                        val width = this.size.width
+                        val height = this.size.height
 
-        // Artist recs auto-fetched from InnerTube
-        item {
-            if (homeRecs.isNotEmpty()) {
-                LazyRow(
-                    contentPadding = PaddingValues(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    modifier = Modifier.padding(bottom = 8.dp)
-                ) {
-                    items(homeRecs) { song ->
-                        SquareAlbumItem(song = song) {
-                            viewModel.playSong(song)
-                            onNavigateToPlayer()
+                        // Create mesh gradient with 5 color blobs for more variation
+                        // First color blob - top left
+                        val brush1 = Brush.radialGradient(
+                            colors = listOf(
+                                color1.copy(alpha = 0.38f),
+                                color1.copy(alpha = 0.24f),
+                                color1.copy(alpha = 0.14f),
+                                color1.copy(alpha = 0.06f),
+                                Color.Transparent
+                            ),
+                            center = Offset(width * 0.15f, height * 0.1f),
+                            radius = width * 0.55f
+                        )
+
+                        // Second color blob - top right
+                        val brush2 = Brush.radialGradient(
+                            colors = listOf(
+                                color2.copy(alpha = 0.34f),
+                                color2.copy(alpha = 0.2f),
+                                color2.copy(alpha = 0.11f),
+                                color2.copy(alpha = 0.05f),
+                                Color.Transparent
+                            ),
+                            center = Offset(width * 0.85f, height * 0.2f),
+                            radius = width * 0.65f
+                        )
+
+                        // Third color blob - middle left
+                        val brush3 = Brush.radialGradient(
+                            colors = listOf(
+                                color3.copy(alpha = 0.3f),
+                                color3.copy(alpha = 0.17f),
+                                color3.copy(alpha = 0.09f),
+                                color3.copy(alpha = 0.04f),
+                                Color.Transparent
+                            ),
+                            center = Offset(width * 0.3f, height * 0.45f),
+                            radius = width * 0.6f
+                        )
+
+                        // Fourth color blob - middle right
+                        val brush4 = Brush.radialGradient(
+                            colors = listOf(
+                                color4.copy(alpha = 0.26f),
+                                color4.copy(alpha = 0.14f),
+                                color4.copy(alpha = 0.08f),
+                                color4.copy(alpha = 0.03f),
+                                Color.Transparent
+                            ),
+                            center = Offset(width * 0.7f, height * 0.5f),
+                            radius = width * 0.7f
+                        )
+
+                        // Fifth color blob - bottom center (helps with smooth fade)
+                        val brush5 = Brush.radialGradient(
+                            colors = listOf(
+                                color5.copy(alpha = 0.22f),
+                                color5.copy(alpha = 0.12f),
+                                color5.copy(alpha = 0.06f),
+                                color5.copy(alpha = 0.02f),
+                                Color.Transparent
+                            ),
+                            center = Offset(width * 0.5f, height * 0.75f),
+                            radius = width * 0.8f
+                        )
+
+                        // Add a final vertical gradient overlay to ensure smooth bottom fade
+                        val overlayBrush = Brush.verticalGradient(
+                            colors = listOf(
+                                Color.Transparent,
+                                Color.Transparent,
+                                surfaceColor.copy(alpha = 0.22f),
+                                surfaceColor.copy(alpha = 0.55f),
+                                surfaceColor
+                            ),
+                            startY = height * 0.4f,
+                            endY = height
+                        )
+
+                        onDrawBehind {
+                            drawRect(brush = brush1)
+                            drawRect(brush = brush2)
+                            drawRect(brush = brush3)
+                            drawRect(brush = brush4)
+                            drawRect(brush = brush5)
+                            drawRect(brush = overlayBrush)
                         }
                     }
-                }
-            }
+            ) {}
         }
-
-        // Mood section
-        item {
-            if (homePop.isNotEmpty()) {
-                Text(
-                    text = "Pop Music",
-                    color = Color.White,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)
+        
+        BoxWithConstraints(
+            modifier = Modifier
+                .fillMaxSize()
+                .pullToRefresh(
+                    state = pullRefreshState,
+                    isRefreshing = isRefreshing,
+                    onRefresh = viewModel::refresh
                 )
-                LazyRow(
-                    contentPadding = PaddingValues(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    items(homePop) { song ->
-                        SquareAlbumItem(song = song) {
-                            viewModel.playSong(song)
-                            onNavigateToPlayer()
-                        }
+        ) {
+            val horizontalLazyGridItemWidthFactor = if (maxWidth * 0.475f >= 320.dp) 0.475f else 0.9f
+            val horizontalLazyGridItemWidth = maxWidth * horizontalLazyGridItemWidthFactor
+            val forgottenFavoritesSnapLayoutInfoProvider = remember(forgottenFavoritesLazyGridState) {
+                SnapLayoutInfoProvider(
+                    lazyGridState = forgottenFavoritesLazyGridState,
+                    positionInLayout = { layoutSize, itemSize ->
+                        (layoutSize * horizontalLazyGridItemWidthFactor / 2f - itemSize / 2f)
                     }
-                }
+                )
             }
-        }
 
-        // Trap City Channel section
-        item {
-            if (homeTrapCity.isNotEmpty()) {
-                Column(modifier = Modifier.padding(top = 24.dp)) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 14.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        AsyncImage(
-                            model = "https://images.unsplash.com/photo-1566098094535-9ce28ab8bfd0?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=100",
-                            contentDescription = "Channel",
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(CircleShape)
-                        )
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Column {
-                            Text(
-                                text = "FROM CHANNELS YOU SUBSCRIBED TO",
-                                color = Color(0xFFAAAAAA),
-                                fontSize = 10.sp,
-                                letterSpacing = 1.sp
-                            )
-                            Text(
-                                text = "Trap City",
-                                color = Color.White,
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-
-                    LazyRow(
-                        contentPadding = PaddingValues(horizontal = 16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        items(homeTrapCity) { song ->
-                            RectangularAlbumItem(song = song) {
-                                viewModel.playSong(song)
-                                onNavigateToPlayer()
+            LazyColumn(
+                state = lazylistState,
+                contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues()
+            ) {
+                if (showHomeCategoryChips) {
+                    item {
+                        ChipsRow(
+                            chips = homePage?.chips.orEmpty().map { it to it.title },
+                            currentValue = selectedChip,
+                            onValueUpdate = {
+                                viewModel.toggleChip(it)
                             }
-                        }
+                        )
                     }
                 }
-            }
-        }
 
-        // Recently Played using Recommendations for now
-        item {
-            if (homeRecs.isNotEmpty()) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 14.dp)
-                        .padding(top = 10.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text("Recently Played", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("More", color = Color(0xFF00D4FF), fontSize = 13.sp)
-                        Icon(Icons.Default.ChevronRight, contentDescription = null, tint = Color(0xFF00D4FF), modifier = Modifier.size(16.dp))
-                    }
+                quickPicks?.takeIf { it.isNotEmpty() }?.let { picks ->
+            /*
+                item {
+                    NavigationTitle(
+                        title = stringResource(R.string.quick_picks),
+                        modifier = Modifier.animateItem()
+                    )
+                }
+            */
+
+                item {
+                    QuickPicksSection(
+                        quickPicks = picks,
+                        mediaMetadata = mediaMetadata,
+                        isPlaying = isPlaying,
+                        navController = navController,
+                        playerConnection = playerConnection,
+                        menuState = menuState,
+                        haptic = haptic
+                    )
                 }
             }
-        }
 
-        items(homeRecs.take(5)) { song ->
-            Row(
+            speedDialSongs.takeIf { it.isNotEmpty() }?.let { songs ->
+                item {
+                    NavigationTitle(
+                        title = stringResource(R.string.speed_dial),
+                        modifier = Modifier.animateItem()
+                    )
+                }
+
+                item {
+                    SpeedDialSection(
+                        speedDialSongs = songs,
+                        mediaMetadata = mediaMetadata,
+                        isPlaying = isPlaying,
+                        navController = navController,
+                        playerConnection = playerConnection,
+                        menuState = menuState,
+                        haptic = haptic
+                    )
+                }
+            }
+
+            keepListening?.takeIf { it.isNotEmpty() }?.let { items ->
+                item {
+                    NavigationTitle(
+                        title = stringResource(R.string.keep_listening),
+                        modifier = Modifier.animateItem()
+                    )
+                }
+
+                item {
+                    KeepListeningSection(
+                        keepListening = items,
+                        mediaMetadata = mediaMetadata,
+                        isPlaying = isPlaying,
+                        navController = navController,
+                        playerConnection = playerConnection,
+                        menuState = menuState,
+                        haptic = haptic,
+                        scope = scope
+                    )
+                }
+            }
+
+            AccountPlaylistsContainer(
+                viewModel = viewModel,
+                accountName = accountName,
+                accountImageUrl = url,
+                mediaMetadata = mediaMetadata,
+                isPlaying = isPlaying,
+                navController = navController,
+                playerConnection = playerConnection,
+                menuState = menuState,
+                haptic = haptic,
+                scope = scope
+            )
+
+            forgottenFavorites?.takeIf { it.isNotEmpty() }?.let { favorites ->
+                item {
+                    NavigationTitle(
+                        title = stringResource(R.string.forgotten_favorites),
+                        modifier = Modifier.animateItem()
+                    )
+                }
+
+                item {
+                    ForgottenFavoritesSection(
+                        forgottenFavorites = favorites,
+                        mediaMetadata = mediaMetadata,
+                        isPlaying = isPlaying,
+                        horizontalLazyGridItemWidth = horizontalLazyGridItemWidth,
+                        lazyGridState = forgottenFavoritesLazyGridState,
+                        snapLayoutInfoProvider = forgottenFavoritesSnapLayoutInfoProvider,
+                        navController = navController,
+                        playerConnection = playerConnection,
+                        menuState = menuState,
+                        haptic = haptic
+                    )
+                }
+            }
+
+            SimilarRecommendationsContainer(
+                viewModel = viewModel,
+                mediaMetadata = mediaMetadata,
+                isPlaying = isPlaying,
+                navController = navController,
+                playerConnection = playerConnection,
+                menuState = menuState,
+                haptic = haptic,
+                scope = scope
+            )
+
+            homePage?.sections?.forEach { section ->
+                item {
+                    HomePageSectionTitle(
+                        section = section,
+                        navController = navController,
+                        modifier = Modifier.animateItem()
+                    )
+                }
+
+                item {
+                    HomePageSectionContent(
+                        section = section,
+                        mediaMetadata = mediaMetadata,
+                        isPlaying = isPlaying,
+                        navController = navController,
+                        playerConnection = playerConnection,
+                        menuState = menuState,
+                        haptic = haptic,
+                        scope = scope
+                    )
+                }
+            }
+
+            if (isLoading || homePage?.continuation != null && homePage?.sections?.isNotEmpty() == true) {
+                item {
+                    HomeLoadingShimmer(modifier = Modifier.animateItem())
+                }
+            }
+            }
+
+            Indicator(
+                isRefreshing = isRefreshing,
+                state = pullRefreshState,
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { 
-                        viewModel.playSong(song)
-                        onNavigateToPlayer()
-                    }
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                AsyncImage(
-                    model = song.thumbnailUrl,
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .size(46.dp)
-                        .clip(RoundedCornerShape(6.dp))
-                )
-                Spacer(modifier = Modifier.width(12.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = song.title,
-                        color = Color.White,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Medium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Text(
-                        text = song.artist,
-                        color = Color(0xFF888888),
-                        fontSize = 12.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-            }
+                    .align(Alignment.TopCenter)
+                    .padding(LocalPlayerAwareWindowInsets.current.asPaddingValues()),
+            )
         }
-    }
-}
-
-@Composable
-fun SquareAlbumItem(song: RoxySearchResult, onClick: () -> Unit) {
-    Column(
-        modifier = Modifier
-            .width(140.dp)
-            .clickable(onClick = onClick)
-    ) {
-        AsyncImage(
-            model = song.thumbnailUrl,
-            contentDescription = song.title,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier
-                .size(140.dp)
-                .clip(RoundedCornerShape(10.dp))
-        )
-        Spacer(modifier = Modifier.height(6.dp))
-        Text(
-            text = song.title,
-            color = Color.White,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.Medium,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-        Text(
-            text = song.artist,
-            color = Color(0xFF888888),
-            fontSize = 12.sp,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-    }
-}
-
-@Composable
-fun RectangularAlbumItem(song: RoxySearchResult, onClick: () -> Unit) {
-    Column(
-        modifier = Modifier
-            .width(140.dp)
-            .clickable(onClick = onClick)
-    ) {
-        AsyncImage(
-            model = song.thumbnailUrl,
-            contentDescription = song.title,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier
-                .width(140.dp)
-                .height(90.dp)
-                .clip(RoundedCornerShape(8.dp))
-        )
-        Spacer(modifier = Modifier.height(6.dp))
-        Text(
-            text = song.title,
-            color = Color.White,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Medium,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-        Text(
-            text = song.artist,
-            color = Color(0xFF888888),
-            fontSize = 11.sp,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
     }
 }
