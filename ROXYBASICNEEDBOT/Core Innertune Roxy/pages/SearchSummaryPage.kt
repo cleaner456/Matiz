@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Roxy Project Original (2026)
  * KÃ²i Natsuko (github.com/koiverse)
  * Licensed Under GPL-3.0 | see git history for contributors
@@ -213,7 +213,7 @@ data class SearchSummaryPage(
                     ?.runs
                     ?.splitBySeparator()
                     ?: emptyList()
-            val listRun = (secondaryLine + thirdLine).clean()
+            val listRun = (secondaryLine + thirdLine).flatten().clean()
             return when {
                 renderer.isSong -> {
                     SongItem(

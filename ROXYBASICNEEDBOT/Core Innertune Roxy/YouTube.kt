@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Roxy Project Original (2026)
  * KÃ²i Natsuko (github.com/koiverse)
  * Licensed Under GPL-3.0 | see git history for contributors
@@ -1221,7 +1221,7 @@ object YouTube {
         response.actions?.firstOrNull()?.updateEngagementPanelAction?.content?.transcriptRenderer?.body?.transcriptBodyRenderer?.cueGroups?.joinToString(separator = "\n") { group ->
             val time = group.transcriptCueGroupRenderer.cues[0].transcriptCueRenderer.startOffsetMs
             val text = group.transcriptCueGroupRenderer.cues[0].transcriptCueRenderer.cue.simpleText
-                .trim('â™ª')
+                .trim { it == '♪' }
                 .trim(' ')
             "[%02d:%02d.%03d]$text".format(time / 60000, (time / 1000) % 60, time % 1000)
         }!!
