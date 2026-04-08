@@ -37,6 +37,7 @@ android {
     
     buildFeatures {
         compose true
+        buildConfig true
     }
 
     sourceSets {
@@ -74,25 +75,16 @@ tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
 }
 
 dependencies {
-    // Ktor HTTP client
     implementation libs.ktor.client.core
     implementation libs.ktor.client.okhttp
     implementation libs.ktor.client.encoding
     implementation libs.ktor.client.content.negotiation
     implementation libs.ktor.serialization.json
-
-    // Kotlinx serialization + coroutines
     implementation 'org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.0'
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3'
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
-
-    // OkHttp (for stream validation + NewPipe downloader)
     implementation 'com.squareup.okhttp3:okhttp:4.12.0'
-
-    // NewPipe Extractor
     implementation libs.newpipe.extractor
-
-    // AndroidX & Compose
     implementation 'androidx.core:core-ktx:1.12.0'
     implementation libs.lifecycle.runtime.compose
     implementation libs.activity
@@ -102,24 +94,26 @@ dependencies {
     implementation libs.compose.material.icons.extended
     implementation libs.compose.ui.tooling
     implementation libs.navigation
-
-    // ViewModel Compose
     implementation libs.viewmodel.compose
-    
-    // Coil for images
     implementation libs.coil
     implementation libs.coil.network.okhttp
-
-    // ExoPlayer (Media3)
     implementation libs.media3
     implementation libs.media3.session
     implementation libs.media3.okhttp
-
-    // Test
     testImplementation libs.junit
     testImplementation 'org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3'
-
-    // Hilt
     implementation libs.hilt
     ksp libs.hilt.compiler
+    implementation libs.hilt.navigation
+    implementation libs.room.runtime
+    implementation libs.room.ktx
+    ksp libs.room.compiler
+    implementation libs.datastore
+    implementation libs.timber
+    implementation libs.shimmer
+    implementation libs.palette
+    implementation libs.multiplatform.markdown
+    implementation libs.apache.lang3
+    implementation libs.compose.adaptive
+    implementation libs.androidx.window
 }
