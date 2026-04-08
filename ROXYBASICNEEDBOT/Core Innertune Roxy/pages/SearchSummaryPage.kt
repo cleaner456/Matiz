@@ -213,7 +213,7 @@ data class SearchSummaryPage(
                     ?.runs
                     ?.splitBySeparator()
                     ?: emptyList()
-            val listRun = (secondaryLine + thirdLine).flatten().clean()
+            val listRun = secondaryLine + thirdLine
             return when {
                 renderer.isSong -> {
                     SongItem(
